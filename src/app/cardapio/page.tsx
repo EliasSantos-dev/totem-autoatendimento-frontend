@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PopCard } from "@/components/ui/PopCard";
 import { PopButton } from "@/components/ui/PopButton";
+import { ProductModal, Addon, Product } from "@/components/ui/ProductModal";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n/i18n";
@@ -27,29 +28,22 @@ const CATEGORY_ICONS: Record<string, string> = {
   Saladas: "🥗",
 };
 
-interface Product {
-  id: string; // codigo_saipos — usado como integration_code no pedido
-  name: string;
-  price: number;
-  desc: string;
-  category: string;
-  image?: string;
-}
 
 /** Converte item do catálogo Saipos para o formato interno do frontend */
-function mapSaiposItem(item: any): Product | null {
+function mapSaiposItem(item: Record<string, unknown>): Product | null {
   // Só exibe PRATO habilitado
   if (item.tipo !== "PRATO") return null;
   if (item.store_item_enabled === "N") return null;
 
   return {
-    id: item.codigo_saipos,
-    name: item.item,
-    price: item.price,
-    desc:
-      item.tamanho && item.tamanho !== "Único" ? item.tamanho : item.categoria,
-    category: item.categoria,
-    image: undefined, // Saipos não fornece imagem; deixa sem ou usa placeholder
+    id: String(item.codigo_saipos),
+    name: String(item.item),
+    price: Number(item.price),
+    desc: String(
+      item.tamanho && item.tamanho !== "Único" ? item.tamanho : item.categoria
+    ),
+    category: String(item.category || item.categoria),
+    image_url: item.image_url ? String(item.image_url) : undefined,
   };
 }
 
@@ -58,11 +52,16 @@ export default function CardapioScreen() {
   const { t } = useI18n();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [addons, setAddons] = useState<Addon[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+  
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const [cart, setCart] = useState<
-    { id: string; name: string; qtd: number; price: number }[]
+    { cartItemId: string; id: string; name: string; category: string; qtd: number; price: number; addons: { id: string; name: string; price: number; quantity: number }[] }[]
   >([]);
 
   useEffect(() => {
@@ -70,23 +69,37 @@ export default function CardapioScreen() {
       try {
         const res = await fetch(`${BACKEND_URL}/saipos/catalog`);
         if (!res.ok) throw new Error("Erro ao buscar catálogo");
-        const data: any[] = await res.json();
+        const data: Record<string, unknown>[] = await res.json();
 
         const mapped = data
           .map(mapSaiposItem)
           .filter((p): p is Product => p !== null);
+
+        const addonsMapped = data
+          .filter(
+            (item) =>
+              item.tipo === "COMPLEMENTO" && item.store_item_enabled === "Y"
+          )
+          .map((item) => ({
+            id: String(item.codigo_saipos),
+            name: String(item.item),
+            price: Number(item.price) || 0,
+            category: String(item.categoria || "Adicionais"),
+          }));
 
         const uniqueCategories = Array.from(
           new Set(mapped.map((p) => p.category)),
         );
 
         setProducts(mapped);
+        setAddons(addonsMapped);
         setCategories(uniqueCategories);
         setActiveCategory(uniqueCategories[0] || "");
       } catch (err) {
         console.error("Falha ao carregar catálogo Saipos:", err);
         // Fallback: categorias e produtos zerados — exibe mensagem de vazio
         setProducts([]);
+        setAddons([]);
         setCategories([]);
       } finally {
         setIsLoading(false);
@@ -101,20 +114,47 @@ export default function CardapioScreen() {
     [products, activeCategory],
   );
 
-  const cartTotal = cart.reduce((acc, item) => acc + item.price * item.qtd, 0);
+  const cartTotal = cart.reduce((acc, item) => {
+    const itemTotal = item.price + item.addons.reduce((a, b) => a + b.price * b.quantity, 0);
+    return acc + itemTotal * item.qtd;
+  }, 0);
   const cartItemsCount = cart.reduce((acc, item) => acc + item.qtd, 0);
 
-  const addToCart = (product: Product) => {
+  const handleAddToCart = (
+    product: Product,
+    quantity: number,
+    selectedAddons: { addon: Addon; quantity: number }[]
+  ) => {
     setCart((prev) => {
-      const exists = prev.find((i) => i.id === product.id);
+      // Create a unique hash for the product + addons combination
+      const addonsHash = selectedAddons
+        .map((a) => `${a.addon.id}:${a.quantity}`)
+        .sort()
+        .join("|");
+      const cartItemId = `${product.id}-${addonsHash}`;
+
+      const exists = prev.find((i) => i.cartItemId === cartItemId);
       if (exists) {
         return prev.map((i) =>
-          i.id === product.id ? { ...i, qtd: i.qtd + 1 } : i,
+          i.cartItemId === cartItemId ? { ...i, qtd: i.qtd + quantity } : i
         );
       }
       return [
         ...prev,
-        { id: product.id, name: product.name, qtd: 1, price: product.price },
+        {
+          cartItemId,
+          id: product.id,
+          name: product.name,
+          category: product.category,
+          qtd: quantity,
+          price: product.price,
+          addons: selectedAddons.map((a) => ({
+            id: a.addon.id,
+            name: a.addon.name,
+            price: a.addon.price,
+            quantity: a.quantity,
+          })),
+        },
       ];
     });
   };
@@ -211,11 +251,23 @@ export default function CardapioScreen() {
                   variant="white"
                   className="flex flex-col overflow-hidden group h-full justify-between hover:-translate-y-2 hover:shadow-[12px_12px_0px_#000] transition-all duration-300"
                 >
-                  {/* Placeholder de imagem (Saipos não fornece URL de imagem) */}
-                  <div className="w-full h-56 border-b-4 border-popBlack overflow-hidden relative bg-gray-100 flex items-center justify-center">
-                    <span className="text-8xl">
-                      {CATEGORY_ICONS[prod.category] || "🍽️"}
-                    </span>
+                  {/* Imagem do Produto */}
+                  <div className="w-full aspect-square border-b-4 border-popBlack overflow-hidden relative bg-white flex items-center justify-center">
+                    {prod.image_url ? (
+                      <img
+                        src={prod.image_url}
+                        alt={prod.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = ""; // Clear source on error to show placeholder
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <span className="text-8xl">
+                        {CATEGORY_ICONS[prod.category] || "🍽️"}
+                      </span>
+                    )}
                   </div>
 
                   <div className="p-5 flex-1 flex flex-col">
@@ -232,7 +284,10 @@ export default function CardapioScreen() {
                       <PopButton
                         variant="secondary"
                         className="py-3 px-6 border-2 text-xl transform group-active:scale-95 transition-transform"
-                        onClick={() => addToCart(prod)}
+                        onClick={() => {
+                          setSelectedProduct(prod);
+                          setIsModalOpen(true);
+                        }}
                       >
                         {t.menu.add}
                       </PopButton>
@@ -309,6 +364,15 @@ export default function CardapioScreen() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Modal de Produto */}
+      <ProductModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        product={selectedProduct}
+        addons={addons}
+        onAddToCart={handleAddToCart}
+      />
     </main>
   );
 }

@@ -7,10 +7,18 @@ import { PopButton } from "@/components/ui/PopButton";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n/i18n";
 
+interface OrderData {
+  orderId?: string;
+  ticketNumber?: string | number;
+  pix?: {
+    payload?: string;
+  };
+}
+
 export default function PagamentoScreen() {
   const router = useRouter();
   const { t } = useI18n();
-  const [orderData, setOrderData] = useState<any>(null);
+  const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [networkError, setNetworkError] = useState(false);
 
   useEffect(() => {
@@ -108,6 +116,7 @@ export default function PagamentoScreen() {
               )}
 
               {qrCodeUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={qrCodeUrl}
                   alt="QR Code PIX"

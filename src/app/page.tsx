@@ -58,6 +58,7 @@ export default function IdleScreen() {
             className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl p-0 border-[4px] shadow-[4px_4px_0_0_#000]"
             onClick={(e) => {
               e.stopPropagation();
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               setLanguage(lang.code as any);
             }}
           >
@@ -149,8 +150,10 @@ export default function IdleScreen() {
                 transition={{ delay: 0.8 + idx * 0.1 }}
                 className={`w-40 h-40 border-[5px] border-popBlack rounded-3xl overflow-hidden shadow-[8px_8px_0_0_rgba(0,0,0,0.15)] bg-white p-1 transform ${idx === 1 ? "rotate-2" : idx === 0 ? "-rotate-3" : "rotate-[4deg]"}`}
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={img}
+                  alt={`Atração ${idx}`}
                   className="w-full h-full object-cover rounded-2xl"
                 />
               </motion.div>
