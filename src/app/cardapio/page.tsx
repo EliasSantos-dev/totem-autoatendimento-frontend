@@ -194,15 +194,15 @@ export default function CardapioScreen() {
       <div className="absolute inset-0 bg-halftone opacity-[0.05] pointer-events-none z-0" />
 
       {/* Sidebar de Categorias */}
-      <aside className="w-1/4 max-w-[280px] bg-popYellow border-r-[6px] border-popBlack flex flex-col items-center py-8 z-10 shadow-pop relative">
+      <aside className="w-[200px] shrink-0 bg-popYellow border-r-[6px] border-popBlack flex flex-col items-center py-8 z-10 shadow-[8px_0px_0_0_#000] relative">
         <button
           onClick={() => router.push("/")}
-          className="mb-12 p-4 bg-popWhite rounded-full border-4 border-popBlack shadow-[4px_4px_0_0_#000] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all active:bg-popRed active:text-white"
+          className="mb-10 p-4 bg-popWhite rounded-full border-[5px] border-popBlack shadow-[4px_4px_0_0_#000] hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000] active:translate-y-1 active:shadow-none transition-all text-popBlack"
         >
           <ArrowLeft size={36} strokeWidth={4} />
         </button>
 
-        <div className="flex flex-col gap-6 w-full px-4">
+        <div className="flex flex-col gap-4 w-full px-4">
           {categories.map((cat) => {
             const isActive = activeCategory === cat;
             const icon = CATEGORY_ICONS[cat] || "🍽️";
@@ -211,16 +211,16 @@ export default function CardapioScreen() {
                 key={cat}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setActiveCategory(cat)}
-                className={`flex flex-col items-center justify-center py-6 px-2 rounded-3xl border-4 border-popBlack shadow-[4px_4px_0_0_#000] transition-colors ${
+                className={`flex flex-col items-center justify-center py-6 px-2 rounded-3xl border-[5px] border-popBlack shadow-[6px_6px_0_0_#000] active:translate-y-2 active:shadow-none transition-all ${
                   isActive
-                    ? "bg-popRed text-white"
-                    : "bg-popWhite text-popBlack hover:bg-gray-100"
+                    ? "bg-popRed text-popYellow"
+                    : "bg-popWhite text-popBlack"
                 }`}
               >
-                <span className="text-5xl mb-2 filter drop-shadow-md">
+                <span className="text-6xl mb-2 filter drop-shadow-[4px_4px_0_#000]">
                   {icon}
                 </span>
-                <span className="font-bangers text-2xl tracking-wide">
+                <span className="font-bangers text-[2.2rem] leading-none tracking-wide text-pop-stroke text-center">
                   {cat}
                 </span>
               </motion.button>
@@ -230,20 +230,20 @@ export default function CardapioScreen() {
       </aside>
 
       {/* Grid de Produtos */}
-      <section className="flex-1 flex flex-col h-screen overflow-hidden pb-40 z-10">
-        <div className="p-8 pb-4">
-          <h1 className="font-bangers text-[4rem] text-popRed text-pop-stroke tracking-wider drop-shadow-md uppercase">
+      <section className="flex-1 flex flex-col h-screen overflow-hidden pb-48 z-10">
+        <div className="p-10 pb-6">
+          <h1 className="font-bangers text-[5.5rem] text-popRed text-pop-stroke tracking-wider drop-shadow-[6px_6px_0_#000] uppercase inline-block bg-popYellow px-8 py-2 border-[6px] border-popBlack transform -rotate-2">
             {activeCategory || t.menu.categories.Burgers}
           </h1>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-8 pb-8">
+        <div className="flex-1 overflow-y-auto px-10 pb-12">
           <motion.div
             variants={containerVariants}
             initial="hidden"
             animate="show"
             key={activeCategory}
-            className="grid grid-cols-1 xl:grid-cols-2 gap-8"
+            className="grid grid-cols-2 gap-10"
           >
             {filteredProducts.map((prod) => (
               <motion.div variants={itemVariants} key={prod.id}>
@@ -270,20 +270,20 @@ export default function CardapioScreen() {
                     )}
                   </div>
 
-                  <div className="p-5 flex-1 flex flex-col">
-                    <h2 className="font-bangers text-3xl tracking-wide text-popBlack mb-2 line-clamp-1">
+                  <div className="p-6 flex-1 flex flex-col">
+                    <h2 className="font-bangers text-4xl tracking-wide text-popBlack mb-3 line-clamp-1">
                       {prod.name}
                     </h2>
-                    <p className="font-nunito text-base font-bold text-gray-500 leading-snug line-clamp-2 mb-4">
+                    <p className="font-nunito text-xl font-bold text-gray-600 leading-snug line-clamp-2 mb-6">
                       {prod.desc}
                     </p>
-                    <div className="mt-auto flex items-center justify-between">
-                      <span className="font-bangers text-4xl text-popRed">
+                    <div className="mt-auto flex items-center justify-between pt-4 border-t-4 border-popBlack border-dashed">
+                      <span className="font-bangers text-5xl text-popRed drop-shadow-[2px_2px_0_#000]">
                         R$ {prod.price.toFixed(2)}
                       </span>
                       <PopButton
-                        variant="secondary"
-                        className="py-3 px-6 border-2 text-xl transform group-active:scale-95 transition-transform"
+                        variant="warning"
+                        className="py-4 px-8 text-2xl transform transition-transform"
                         onClick={() => {
                           setSelectedProduct(prod);
                           setIsModalOpen(true);
@@ -315,32 +315,32 @@ export default function CardapioScreen() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 200, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="fixed bottom-0 left-[25%] right-0 p-8 z-30 pointer-events-none"
+            className="fixed bottom-0 left-[200px] right-0 p-10 z-30 pointer-events-none"
           >
-            <div className="bg-popBlack border-[6px] border-[#333] p-5 rounded-[2.5rem] shadow-[0_-10px_30px_rgba(0,0,0,0.5)] pointer-events-auto flex items-center justify-between overflow-hidden relative">
+            <div className="bg-popBlack border-[6px] border-[#333] p-6 rounded-[3rem] shadow-[0_-15px_40px_rgba(0,0,0,0.6)] pointer-events-auto flex items-center justify-between overflow-hidden relative">
               <div className="absolute inset-0 bg-halftone opacity-20 pointer-events-none" />
 
-              <div className="flex items-center gap-6 text-popWhite pl-4 z-10">
-                <div className="relative bg-popRed p-4 rounded-2xl border-[3px] border-white transform -rotate-3">
-                  <ShoppingBag size={48} color="white" strokeWidth={2.5} />
+              <div className="flex items-center gap-8 text-popWhite pl-6 z-10">
+                <div className="relative bg-popRed p-5 rounded-[2rem] border-[4px] border-white transform -rotate-3 shadow-[6px_6px_0_0_#000]">
+                  <ShoppingBag size={56} color="white" strokeWidth={3} />
                   <motion.div
                     key={cartItemsCount}
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="absolute -top-4 -right-4 bg-popYellow text-popBlack w-10 h-10 rounded-full border-[3px] border-popBlack flex items-center justify-center font-bangers text-2xl shadow-sm"
+                    className="absolute -top-6 -right-6 bg-popYellow text-popBlack w-14 h-14 rounded-full border-[5px] border-popBlack flex items-center justify-center font-bangers text-[2.5rem] shadow-[4px_4px_0_0_#000] transform rotate-6"
                   >
                     {cartItemsCount}
                   </motion.div>
                 </div>
-                <div className="flex flex-col">
-                  <span className="font-bangers text-2xl text-gray-400 tracking-wider">
+                <div className="flex flex-col gap-1">
+                  <span className="font-bangers text-[2rem] text-gray-300 tracking-wider">
                     {t.menu.total}
                   </span>
                   <motion.span
                     key={cartTotal}
                     initial={{ scale: 1.2, color: "#fff" }}
                     animate={{ scale: 1, color: "#facc15" }}
-                    className="font-bangers text-5xl text-popYellow drop-shadow-md"
+                    className="font-bangers text-[4.5rem] text-popYellow drop-shadow-[4px_4px_0_#000] leading-none"
                   >
                     R$ {cartTotal.toFixed(2)}
                   </motion.span>
@@ -349,7 +349,7 @@ export default function CardapioScreen() {
 
               <PopButton
                 variant="primary"
-                className="text-4xl px-12 py-6 rounded-3xl h-full border-[5px] z-10"
+                className="text-[3rem] px-16 py-8 rounded-[3rem] h-full border-[6px] z-10"
                 onClick={() => {
                   sessionStorage.setItem(
                     "totem_current_cart",

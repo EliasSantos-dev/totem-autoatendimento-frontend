@@ -14,12 +14,12 @@ export function PopButton({
 }: PopButtonProps) {
   const baseClasses = `
     flex items-center justify-center gap-2
-    px-6 py-4 rounded-xl
-    border-[3px] border-popBlack
-    text-xl uppercase font-black font-nunito tracking-wider
-    shadow-pop hover:shadow-pop-hover hover:-translate-y-1 hover:-translate-x-1
-    active:shadow-pop-active active:translate-y-0 active:translate-x-0
-    transition-all duration-100 ease-out select-none
+    px-8 py-5 rounded-2xl
+    border-[4px] border-popBlack
+    text-[1.5rem] uppercase font-black font-nunito tracking-wider
+    shadow-[6px_6px_0_0_#000] hover:shadow-[8px_8px_0_0_#000] hover:-translate-y-1 hover:-translate-x-1
+    active:shadow-none active:translate-y-[6px] active:translate-x-[6px]
+    transition-all duration-150 ease-out select-none
   `;
 
   const variants = {

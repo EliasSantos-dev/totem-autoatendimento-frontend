@@ -175,22 +175,22 @@ export function ProductModal({
                                 + R$ {addon.price.toFixed(2)}
                               </span>
                             </div>
-                            <div className="flex items-center gap-4 bg-popYellow px-2 py-1 rounded-2xl border-2 border-popBlack shadow-[2px_2px_0px_#000]">
+                            <div className="flex items-center gap-6 bg-popWhite px-4 py-2 rounded-2xl border-[4px] border-popBlack shadow-[4px_4px_0px_#000]">
                               <button
                                 onClick={() => handleAddonChange(addon, -1)}
                                 disabled={qty === 0}
-                                className="p-2 bg-white rounded-xl border-2 border-popBlack active:bg-gray-200 disabled:opacity-50 transition-colors"
+                                className="p-4 bg-popYellow rounded-xl border-[4px] border-popBlack active:translate-y-1 active:shadow-none disabled:opacity-50 transition-all shadow-[4px_4px_0_#000]"
                               >
-                                <Minus size={20} className="text-popBlack" />
+                                <Minus size={32} className="text-popBlack" strokeWidth={4} />
                               </button>
-                              <span className="font-bangers text-2xl w-6 text-center text-popBlack">
+                              <span className="font-bangers text-[2.5rem] w-8 text-center text-popBlack">
                                 {qty}
                               </span>
                               <button
                                 onClick={() => handleAddonChange(addon, 1)}
-                                className="p-2 bg-white rounded-xl border-2 border-popBlack active:bg-gray-200 transition-colors"
+                                className="p-4 bg-popYellow rounded-xl border-[4px] border-popBlack active:translate-y-1 active:shadow-none transition-all shadow-[4px_4px_0_#000]"
                               >
-                                <Plus size={20} className="text-popBlack" />
+                                <Plus size={32} className="text-popBlack" strokeWidth={4} />
                               </button>
                             </div>
                           </div>
@@ -204,36 +204,36 @@ export function ProductModal({
           </div>
 
           {/* Footer / Add to Cart */}
-          <div className="bg-popBlack p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 z-10 rounded-b-[2rem]">
+          <div className="bg-popBlack p-10 flex flex-col md:flex-row items-center justify-between gap-8 z-10 rounded-b-[2rem]">
             {/* Quantity Selector for main product */}
-            <div className="flex items-center gap-6 bg-white p-2 rounded-[2rem] border-4 border-popYellow self-start md:self-auto">
+            <div className="flex items-center gap-8 bg-popWhite p-4 rounded-[2rem] border-[6px] border-popBlack shadow-[6px_6px_0px_#000] self-start md:self-auto">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="p-4 bg-gray-100 rounded-2xl hover:bg-gray-200 transition-colors"
+                className="p-6 bg-popRed rounded-2xl border-[4px] border-popBlack active:translate-y-1 active:shadow-none transition-all shadow-[4px_4px_0px_#000]"
               >
-                <Minus size={24} className="text-popBlack" />
+                <Minus size={40} className="text-popYellow" strokeWidth={5} />
               </button>
-              <span className="font-bangers text-4xl w-8 text-center text-popBlack">
+              <span className="font-bangers text-[4rem] w-12 text-center text-popBlack">
                 {quantity}
               </span>
               <button
                 onClick={() => setQuantity(quantity + 1)}
-                className="p-4 bg-popYellow rounded-2xl hover:bg-yellow-400 transition-colors"
+                className="p-6 bg-popRed rounded-2xl border-[4px] border-popBlack active:translate-y-1 active:shadow-none transition-all shadow-[4px_4px_0px_#000]"
               >
-                <Plus size={24} className="text-popBlack" />
+                <Plus size={40} className="text-popYellow" strokeWidth={5} />
               </button>
             </div>
 
             <PopButton
               variant="primary"
-              className="text-3xl px-8 py-5 flex items-center gap-4 w-full md:w-auto justify-center"
+              className="text-[3rem] px-12 py-8 flex items-center gap-6 w-full md:w-auto justify-center"
               onClick={() => {
                 onAddToCart(product, quantity, selectedAddons);
                 onClose();
               }}
             >
-              <span className="uppercase text-popBlack">Adicionar</span>
-              <span className="bg-white text-popRed px-4 py-1 rounded-full text-2xl border-2 border-popBlack shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+              <span className="uppercase text-popYellow text-pop-stroke tracking-widest">Adicionar</span>
+              <span className="bg-popWhite text-popRed px-6 py-2 rounded-full text-4xl border-[4px] border-popBlack shadow-[4px_4px_0_0_#000] ml-4">
                 R$ {totalPrice.toFixed(2)}
               </span>
             </PopButton>
