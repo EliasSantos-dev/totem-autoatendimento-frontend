@@ -7,11 +7,15 @@ import { PopButton } from "@/components/ui/PopButton";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n/i18n";
 
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
 interface OrderData {
   orderId?: string;
   ticketNumber?: string | number;
   pix?: {
     payload?: string;
+    encodedImage?: string; // QR Code em base64 (vindo do backend/AbacatePay)
   };
 }
 
@@ -37,7 +41,7 @@ export default function PagamentoScreen() {
     const interval = setInterval(async () => {
       try {
         const response = await fetch(
-          `http://localhost:4000/orders/${currentOrderId}`,
+          `${BACKEND_URL}/orders/${currentOrderId}`,
         );
         if (response.ok) {
           failedFetches = 0;
@@ -68,9 +72,17 @@ export default function PagamentoScreen() {
     return () => clearInterval(interval);
   }, [router]);
 
-  const qrCodeUrl = orderData?.pix?.payload
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(orderData.pix.payload)}`
-    : null;
+  // Preferimos o QR base64 gerado pelo próprio backend (não vaza o payload PIX
+  // para serviços de terceiros e funciona offline). Só caímos para o gerador
+  // externo se, por algum motivo, o backend não tiver retornado a imagem.
+  const encoded = orderData?.pix?.encodedImage;
+  const qrCodeUrl = encoded
+    ? encoded.startsWith("data:")
+      ? encoded
+      : `data:image/png;base64,${encoded}`
+    : orderData?.pix?.payload
+      ? `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(orderData.pix.payload)}`
+      : null;
 
   return (
     <main className="flex flex-col min-h-screen bg-popWhite p-6 justify-center items-center relative overflow-hidden">

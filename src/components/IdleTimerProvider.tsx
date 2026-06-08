@@ -5,8 +5,11 @@ import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { PopButton } from "./ui/PopButton";
 
-// 2 minutos de inatividade para disparar o aviso
+// 2 minutos de inatividade para disparar o aviso (telas de navegação/pedido)
 const IDLE_TIMEOUT_MS = 120000;
+// Na tela de pagamento o cliente fica parado olhando o celular para pagar o
+// PIX — 2 min é curto e cancelaria pagamentos em andamento. Damos 5 minutos.
+const PAYMENT_IDLE_TIMEOUT_MS = 300000;
 // 10 segundos para responder ao aviso antes de resetar o Totem
 const COUNTDOWN_MS = 10000;
 
@@ -56,9 +59,14 @@ export function IdleTimerProvider({ children }: { children: React.ReactNode }) {
     // Não ativa o timer na tela inicial nem na tela de sucesso
     if (pathname === "/" || pathname === "/sucesso") return;
 
+    // Na tela de pagamento usamos um timeout maior para não cancelar um PIX
+    // que ainda está sendo pago.
+    const timeout =
+      pathname === "/pagamento" ? PAYMENT_IDLE_TIMEOUT_MS : IDLE_TIMEOUT_MS;
+
     idleTimerRef.current = setTimeout(() => {
       startCountdown();
-    }, IDLE_TIMEOUT_MS);
+    }, timeout);
   }, [pathname, showWarning, startCountdown]);
 
   useEffect(() => {
