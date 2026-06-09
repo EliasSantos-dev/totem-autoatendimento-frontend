@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MoveRight as ArrowRight } from "lucide-react";
 import { PopButton } from "@/components/ui/PopButton";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n/i18n";
-
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+import { useCatalog } from "@/lib/catalog/useCatalog";
 
 interface Featured {
   id: string;
@@ -39,42 +37,28 @@ export default function IdleScreen() {
   const router = useRouter();
   const { t, setLanguage, language } = useI18n();
 
-  const [featured, setFeatured] = useState<Featured[]>([]);
   const [index, setIndex] = useState(0);
 
-  // Busca o catálogo e seleciona os destaques (produtos com foto e preço).
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/saipos/catalog`);
-        if (!res.ok) throw new Error("catálogo indisponível");
-        const data: Record<string, unknown>[] = await res.json();
+  // Usa o mesmo cache do cardápio (react-query): isso PRÉ-CARREGA o catálogo já
+  // na tela de atração, então entrar no /cardapio fica instantâneo ("zero fila").
+  const { data: rawCatalog } = useCatalog();
 
-        const items = data
-          .filter((i) => i.tipo === "PRATO" && i.store_item_enabled !== "N")
-          .map((i) => ({
-            id: String(i.codigo_saipos),
-            name: String(i.item),
-            price: Number(i.price),
-            image_url: i.image_url ? String(i.image_url) : "",
-            categoria: String(i.categoria || ""),
-          }))
-          .filter((p) => p.image_url && p.price > 0)
-          .sort((a, b) => featuredScore(b.categoria) - featuredScore(a.categoria))
-          .slice(0, 6);
-
-        if (!cancelled) setFeatured(items);
-      } catch {
-        // Totem nunca trava o início do pedido: sem destaques, a tela cai
-        // graciosamente pro logo + CTA.
-        if (!cancelled) setFeatured([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Destaques: produtos com foto e preço (prioriza burgers/combos).
+  const featured = useMemo<Featured[]>(() => {
+    if (!rawCatalog) return [];
+    return rawCatalog
+      .filter((i) => i.tipo === "PRATO" && i.store_item_enabled !== "N")
+      .map((i) => ({
+        id: String(i.codigo_saipos),
+        name: String(i.item),
+        price: Number(i.price),
+        image_url: i.image_url ? String(i.image_url) : "",
+        categoria: String(i.categoria || ""),
+      }))
+      .filter((p) => p.image_url && p.price > 0)
+      .sort((a, b) => featuredScore(b.categoria) - featuredScore(a.categoria))
+      .slice(0, 6);
+  }, [rawCatalog]);
 
   // Auto-giro do carrossel.
   useEffect(() => {

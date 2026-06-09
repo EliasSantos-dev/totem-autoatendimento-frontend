@@ -5,13 +5,17 @@ import { useRouter } from "next/navigation";
 import { PopCard } from "@/components/ui/PopCard";
 import { PopButton } from "@/components/ui/PopButton";
 import { ProductModal, Addon, Product } from "@/components/ui/ProductModal";
-import { ArrowLeft, ShoppingBag } from "lucide-react";
+import { ArrowLeft, ArrowRight, ShoppingBag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n/i18n";
 import { categoryIcon } from "@/lib/categoryIcon";
+import { useCatalog, RawCatalogItem } from "@/lib/catalog/useCatalog";
 
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+const brl = new Intl.NumberFormat("pt-BR", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const formatBRL = (v: number) => `R$ ${brl.format(v)}`;
 
 
 /** Converte item do catálogo Saipos para o formato interno do frontend */
@@ -32,16 +36,60 @@ function mapSaiposItem(item: Record<string, unknown>): Product | null {
   };
 }
 
+/** Deriva produtos / adicionais / categorias a partir do catálogo cru. */
+function deriveCatalog(data: RawCatalogItem[] | undefined): {
+  products: Product[];
+  addons: Addon[];
+  categories: string[];
+} {
+  if (!data) return { products: [], addons: [], categories: [] };
+
+  const mapped = data
+    .map(mapSaiposItem)
+    .filter((p): p is Product => p !== null);
+
+  const addons: Addon[] = data
+    .filter(
+      (item) =>
+        item.tipo === "COMPLEMENTO" && item.store_item_enabled === "Y",
+    )
+    .map((item) => ({
+      id: String(item.codigo_saipos),
+      // Na Saipos, para COMPLEMENTO: `item` = nome do PRODUTO pai,
+      // `complemento` = grupo de escolha (ex.: "Transformar") e
+      // `complemento_item` = a opção em si (ex.: "Bacon").
+      name: String(item.complemento_item || item.item),
+      price: Number(item.price) || 0,
+      category: String(item.complemento || item.categoria || "Adicionais"),
+      min: Number(item.min_choices) || 0,
+      max: Number(item.max_choices) || 99,
+    }));
+
+  // Esconde itens-lixo da Saipos: preço R$ 0 E sem nenhum grupo de adicional
+  // (ex.: "Diversos"). Combos R$ 0 que se montam por escolhas (ex.: "Trio Gk")
+  // são mantidos porque têm grupos de adicional.
+  const addonProductIds = new Set(addons.map((a) => a.id.split(".")[0]));
+  const products = mapped.filter(
+    (p) => p.price > 0 || addonProductIds.has(p.id),
+  );
+
+  const categories = Array.from(new Set(products.map((p) => p.category)));
+  return { products, addons, categories };
+}
+
 export default function CardapioScreen() {
   const router = useRouter();
   const { t } = useI18n();
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [addons, setAddons] = useState<Addon[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  // Catálogo via react-query (cache compartilhado com a tela inicial → o
+  // cardápio carrega instantâneo se a home já pré-buscou).
+  const { data: rawCatalog, isLoading } = useCatalog();
+  const { products, addons, categories } = useMemo(
+    () => deriveCatalog(rawCatalog),
+    [rawCatalog],
+  );
   const [activeCategory, setActiveCategory] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(true);
-  
+
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -49,67 +97,39 @@ export default function CardapioScreen() {
     { cartItemId: string; id: string; name: string; category: string; qtd: number; price: number; addons: { id: string; name: string; price: number; quantity: number }[] }[]
   >([]);
 
+  // Hidrata o carrinho salvo no mount — sobrevive a ir/voltar do checkout.
   useEffect(() => {
-    const fetchCatalog = async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/saipos/catalog`);
-        if (!res.ok) throw new Error("Erro ao buscar catálogo");
-        const data: Record<string, unknown>[] = await res.json();
-
-        const mapped = data
-          .map(mapSaiposItem)
-          .filter((p): p is Product => p !== null);
-
-        const addonsMapped = data
-          .filter(
-            (item) =>
-              item.tipo === "COMPLEMENTO" && item.store_item_enabled === "Y"
-          )
-          .map((item) => ({
-            id: String(item.codigo_saipos),
-            // Na Saipos, para COMPLEMENTO: `item` = nome do PRODUTO pai,
-            // `complemento` = grupo de escolha (ex.: "Transformar") e
-            // `complemento_item` = a opção em si (ex.: "Bacon"). Antes usávamos
-            // `item`, então toda opção saía com o nome do produto repetido.
-            name: String(item.complemento_item || item.item),
-            price: Number(item.price) || 0,
-            category: String(item.complemento || item.categoria || "Adicionais"),
-            min: Number(item.min_choices) || 0,
-            max: Number(item.max_choices) || 99,
-          }));
-
-        // Esconde itens-lixo que a Saipos manda habilitados: preço R$ 0 E sem
-        // nenhum grupo de adicional (ex.: o item/categoria "Diversos"). Combos
-        // de preço 0 que se montam por escolhas (ex.: "Trio Gk") são mantidos
-        // porque têm grupos de adicional.
-        const addonProductIds = new Set(
-          addonsMapped.map((a) => a.id.split(".")[0]),
-        );
-        const visibleProducts = mapped.filter(
-          (p) => p.price > 0 || addonProductIds.has(p.id),
-        );
-
-        const uniqueCategories = Array.from(
-          new Set(visibleProducts.map((p) => p.category)),
-        );
-
-        setProducts(visibleProducts);
-        setAddons(addonsMapped);
-        setCategories(uniqueCategories);
-        setActiveCategory(uniqueCategories[0] || "");
-      } catch (err) {
-        console.error("Falha ao carregar catálogo Saipos:", err);
-        // Fallback: categorias e produtos zerados — exibe mensagem de vazio
-        setProducts([]);
-        setAddons([]);
-        setCategories([]);
-      } finally {
-        setIsLoading(false);
+    try {
+      const saved = sessionStorage.getItem("totem_current_cart");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed?.items)) setCart(parsed.items);
       }
-    };
-
-    fetchCatalog();
+    } catch {
+      /* ignora storage corrompido */
+    }
   }, []);
+
+  // Persiste a cada mudança. Não sobrescreve com vazio (evita apagar o que foi
+  // hidratado na montagem; aqui o carrinho só cresce — remoção é no checkout).
+  useEffect(() => {
+    if (cart.length === 0) return;
+    const total = cart.reduce((acc, item) => {
+      const add = item.addons.reduce((a, b) => a + b.price * b.quantity, 0);
+      return acc + (item.price + add) * item.qtd;
+    }, 0);
+    sessionStorage.setItem(
+      "totem_current_cart",
+      JSON.stringify({ items: cart, total }),
+    );
+  }, [cart]);
+
+  // Seleciona a 1ª categoria quando o catálogo chega (ou se a ativa sumir).
+  useEffect(() => {
+    if (categories.length && !categories.includes(activeCategory)) {
+      setActiveCategory(categories[0]);
+    }
+  }, [categories, activeCategory]);
 
   const filteredProducts = useMemo(
     () => products.filter((p) => p.category === activeCategory),
@@ -239,7 +259,7 @@ export default function CardapioScreen() {
           </h1>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-10 pb-12">
+        <div className="flex-1 overflow-y-auto px-10 pb-44">
           <motion.div
             variants={containerVariants}
             initial="hidden"
@@ -257,8 +277,8 @@ export default function CardapioScreen() {
                   }}
                   className="flex flex-col overflow-hidden group h-full justify-between cursor-pointer hover:-translate-y-2 hover:shadow-[12px_12px_0px_#000] transition-all duration-300"
                 >
-                  {/* Imagem do Produto */}
-                  <div className="w-full aspect-square border-b-4 border-popBlack overflow-hidden relative bg-white flex items-center justify-center">
+                  {/* Imagem do Produto (altura fixa p/ uniformizar os cards) */}
+                  <div className="w-full h-56 shrink-0 border-b-4 border-popBlack overflow-hidden relative bg-white flex items-center justify-center">
                     {prod.image_url ? (
                       <img
                         src={prod.image_url}
@@ -277,15 +297,15 @@ export default function CardapioScreen() {
                   </div>
 
                   <div className="p-6 flex-1 flex flex-col">
-                    <h2 className="font-bangers text-4xl tracking-wide text-popBlack mb-3 line-clamp-1">
+                    <h2 className="font-bangers text-4xl tracking-wide text-popBlack mb-2 line-clamp-1 min-h-[2.5rem]">
                       {prod.name}
                     </h2>
-                    <p className="font-nunito text-xl font-bold text-gray-600 leading-snug line-clamp-2 mb-6">
+                    <p className="font-nunito text-xl font-bold text-gray-600 leading-snug line-clamp-2 min-h-[3.5rem] mb-4">
                       {prod.desc}
                     </p>
                     <div className="mt-auto flex items-center justify-between pt-4 border-t-4 border-popBlack border-dashed">
                       <span className="font-bangers text-5xl text-popRed drop-shadow-[2px_2px_0_#000]">
-                        R$ {prod.price.toFixed(2)}
+                        {formatBRL(prod.price)}
                       </span>
                       <PopButton
                         variant="warning"
@@ -322,41 +342,41 @@ export default function CardapioScreen() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 200, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="fixed bottom-0 left-[200px] right-0 p-10 z-30 pointer-events-none"
+            className="fixed bottom-0 left-[200px] right-0 px-8 pb-6 z-30 pointer-events-none"
           >
-            <div className="bg-popBlack border-[6px] border-[#333] p-6 rounded-[3rem] shadow-[0_-15px_40px_rgba(0,0,0,0.6)] pointer-events-auto flex items-center justify-between overflow-hidden relative">
-              <div className="absolute inset-0 bg-halftone opacity-20 pointer-events-none" />
+            <div className="bg-popBlack border-[4px] border-[#2b2b2b] py-4 px-5 rounded-[2rem] shadow-[0_-12px_36px_rgba(0,0,0,0.55)] pointer-events-auto flex items-center justify-between gap-4 overflow-hidden relative">
+              <div className="absolute inset-0 bg-halftone opacity-15 pointer-events-none" />
 
-              <div className="flex items-center gap-8 text-popWhite pl-6 z-10">
-                <div className="relative bg-popRed p-5 rounded-[2rem] border-[4px] border-white transform -rotate-3 shadow-[6px_6px_0_0_#000]">
-                  <ShoppingBag size={56} color="white" strokeWidth={3} />
+              <div className="flex items-center gap-5 text-popWhite z-10 min-w-0">
+                <div className="relative shrink-0 bg-popRed p-3 rounded-2xl border-[4px] border-white -rotate-3 shadow-[4px_4px_0_0_#000]">
+                  <ShoppingBag size={40} color="white" strokeWidth={3} />
                   <motion.div
                     key={cartItemsCount}
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="absolute -top-6 -right-6 bg-popYellow text-popBlack w-14 h-14 rounded-full border-[5px] border-popBlack flex items-center justify-center font-bangers text-[2.5rem] shadow-[4px_4px_0_0_#000] transform rotate-6"
+                    className="absolute -top-4 -right-4 bg-popYellow text-popBlack w-11 h-11 rounded-full border-[4px] border-popBlack flex items-center justify-center font-bangers text-3xl shadow-[3px_3px_0_0_#000] rotate-6"
                   >
                     {cartItemsCount}
                   </motion.div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <span className="font-bangers text-[2rem] text-gray-300 tracking-wider">
+                <div className="flex flex-col leading-none min-w-0">
+                  <span className="font-bangers text-xl text-gray-300 tracking-wider">
                     {t.menu.total}
                   </span>
                   <motion.span
                     key={cartTotal}
-                    initial={{ scale: 1.2, color: "#fff" }}
+                    initial={{ scale: 1.15, color: "#fff" }}
                     animate={{ scale: 1, color: "#facc15" }}
-                    className="font-bangers text-[4.5rem] text-popYellow drop-shadow-[4px_4px_0_#000] leading-none"
+                    className="font-bangers text-5xl text-popYellow drop-shadow-[3px_3px_0_#000] leading-none truncate"
                   >
-                    R$ {cartTotal.toFixed(2)}
+                    {formatBRL(cartTotal)}
                   </motion.span>
                 </div>
               </div>
 
               <PopButton
                 variant="primary"
-                className="text-[3rem] px-16 py-8 rounded-[3rem] h-full border-[6px] z-10"
+                className="shrink-0 text-3xl px-10 py-5 rounded-2xl border-[5px] z-10"
                 onClick={() => {
                   sessionStorage.setItem(
                     "totem_current_cart",
@@ -365,7 +385,8 @@ export default function CardapioScreen() {
                   router.push("/checkout");
                 }}
               >
-                {t.menu.myOrder} {"->"}
+                {t.menu.myOrder}
+                <ArrowRight size={36} strokeWidth={4} className="ml-1" />
               </PopButton>
             </div>
           </motion.div>
