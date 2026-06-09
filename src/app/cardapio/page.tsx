@@ -216,7 +216,7 @@ export default function CardapioScreen() {
       <div className="absolute inset-0 bg-halftone opacity-[0.05] pointer-events-none z-0" />
 
       {/* Sidebar de Categorias */}
-      <aside className="w-[200px] shrink-0 bg-popYellow border-r-[6px] border-popBlack flex flex-col items-center pt-8 z-10 shadow-[8px_0px_0_0_#000] relative h-screen">
+      <aside className="w-50 shrink-0 bg-popYellow border-r-[6px] border-popBlack flex flex-col items-center pt-8 z-10 shadow-[8px_0px_0_0_#000] relative h-screen">
         <button
           onClick={() => router.push("/")}
           className="mb-6 shrink-0 p-4 bg-popWhite rounded-full border-[5px] border-popBlack shadow-[4px_4px_0_0_#000] hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000] active:translate-y-1 active:shadow-none transition-all text-popBlack"
@@ -297,10 +297,10 @@ export default function CardapioScreen() {
                   </div>
 
                   <div className="p-6 flex-1 flex flex-col">
-                    <h2 className="font-bangers text-4xl tracking-wide text-popBlack mb-2 line-clamp-1 min-h-[2.5rem]">
+                    <h2 className="font-bangers text-4xl tracking-wide text-popBlack mb-2 line-clamp-1 min-h-10">
                       {prod.name}
                     </h2>
-                    <p className="font-nunito text-xl font-bold text-gray-600 leading-snug line-clamp-2 min-h-[3.5rem] mb-4">
+                    <p className="font-nunito text-xl font-bold text-gray-600 leading-snug line-clamp-2 min-h-14 mb-4">
                       {prod.desc}
                     </p>
                     <div className="mt-auto flex items-center justify-between pt-4 border-t-4 border-popBlack border-dashed">
@@ -342,19 +342,19 @@ export default function CardapioScreen() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 200, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="fixed bottom-0 left-[200px] right-0 px-8 pb-6 z-30 pointer-events-none"
+            className="fixed bottom-0 left-50 right-0 px-8 pb-6 z-30 pointer-events-none"
           >
-            <div className="bg-popBlack border-[4px] border-[#2b2b2b] py-4 px-5 rounded-[2rem] shadow-[0_-12px_36px_rgba(0,0,0,0.55)] pointer-events-auto flex items-center justify-between gap-4 overflow-hidden relative">
+            <div className="bg-popBlack border-4 border-[#2b2b2b] py-4 px-5 rounded-4xl shadow-[0_-12px_36px_rgba(0,0,0,0.55)] pointer-events-auto flex items-center justify-between gap-4 overflow-hidden relative">
               <div className="absolute inset-0 bg-halftone opacity-15 pointer-events-none" />
 
               <div className="flex items-center gap-5 text-popWhite z-10 min-w-0">
-                <div className="relative shrink-0 bg-popRed p-3 rounded-2xl border-[4px] border-white -rotate-3 shadow-[4px_4px_0_0_#000]">
+                <div className="relative shrink-0 bg-popRed p-3 rounded-2xl border-4 border-white -rotate-3 shadow-[4px_4px_0_0_#000]">
                   <ShoppingBag size={40} color="white" strokeWidth={3} />
                   <motion.div
                     key={cartItemsCount}
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="absolute -top-4 -right-4 bg-popYellow text-popBlack w-11 h-11 rounded-full border-[4px] border-popBlack flex items-center justify-center font-bangers text-3xl shadow-[3px_3px_0_0_#000] rotate-6"
+                    className="absolute -top-4 -right-4 bg-popYellow text-popBlack w-11 h-11 rounded-full border-4 border-popBlack flex items-center justify-center font-bangers text-3xl shadow-[3px_3px_0_0_#000] rotate-6"
                   >
                     {cartItemsCount}
                   </motion.div>

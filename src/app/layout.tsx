@@ -22,6 +22,7 @@ export const metadata: Metadata = {
 import { Providers } from "@/components/providers";
 import { IdleTimerProvider } from "@/components/IdleTimerProvider";
 import { LanguageProvider } from "@/lib/i18n/i18n";
+import { HealthGate } from "@/components/HealthGate";
 
 export default function RootLayout({
   children,
@@ -35,7 +36,9 @@ export default function RootLayout({
       >
         <Providers>
           <LanguageProvider>
-            <IdleTimerProvider>{children}</IdleTimerProvider>
+            <HealthGate>
+              <IdleTimerProvider>{children}</IdleTimerProvider>
+            </HealthGate>
           </LanguageProvider>
         </Providers>
       </body>
