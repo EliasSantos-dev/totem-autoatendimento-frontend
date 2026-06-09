@@ -25,6 +25,13 @@
     -webkit-user-select: none;
     user-select: none;
     -webkit-tap-highlight-color: transparent; /* Remove highlight chato no clique do Android/Windows Touch */
+    scrollbar-width: none; /* Totem é touch: scroll por arrasto, sem barra visível (Firefox) */
+    -ms-overflow-style: none; /* Edge/IE antigo */
+  }
+
+  /* Esconde a barra de rolagem em todos os contêineres (Chrome/Safari/Edge) */
+  *::-webkit-scrollbar {
+    display: none;
   }
 
   /* Permite touch nos inputs */

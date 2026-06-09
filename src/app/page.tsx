@@ -2,44 +2,118 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoveRight as ArrowRight, Zap, Star } from "lucide-react";
+import { MoveRight as ArrowRight } from "lucide-react";
 import { PopButton } from "@/components/ui/PopButton";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n/i18n";
 
-// Loop de Atração
-const attractImages = [
-  "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=600&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1623341214825-9f4f963727da?q=80&w=600&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=600&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1600271886742-f049cd451bba?q=80&w=600&auto=format&fit=crop",
-];
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
+interface Featured {
+  id: string;
+  name: string;
+  price: number;
+  image_url: string;
+  categoria: string;
+}
+
+const brl = new Intl.NumberFormat("pt-BR", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const formatBRL = (price: number) => `R$ ${brl.format(price)}`;
+
+/** Prioriza categorias que rendem boas fotos de vitrine (burgers/combos). */
+function featuredScore(categoria: string): number {
+  const c = categoria.toLowerCase();
+  if (c.includes("burger") || c.includes("smash") || c.includes("saiyajin"))
+    return 3;
+  if (c.includes("combo") || c.includes("oferta") || c.includes("promo"))
+    return 2;
+  if (c.includes("batata") || c.includes("entrada")) return 1;
+  return 0;
+}
 
 export default function IdleScreen() {
   const router = useRouter();
   const { t, setLanguage, language } = useI18n();
-  const [currentImage, setCurrentImage] = useState(0);
 
+  const [featured, setFeatured] = useState<Featured[]>([]);
+  const [index, setIndex] = useState(0);
+
+  // Busca o catálogo e seleciona os destaques (produtos com foto e preço).
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentImage((prev) => (prev + 1) % attractImages.length);
-    }, 4000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/saipos/catalog`);
+        if (!res.ok) throw new Error("catálogo indisponível");
+        const data: Record<string, unknown>[] = await res.json();
+
+        const items = data
+          .filter((i) => i.tipo === "PRATO" && i.store_item_enabled !== "N")
+          .map((i) => ({
+            id: String(i.codigo_saipos),
+            name: String(i.item),
+            price: Number(i.price),
+            image_url: i.image_url ? String(i.image_url) : "",
+            categoria: String(i.categoria || ""),
+          }))
+          .filter((p) => p.image_url && p.price > 0)
+          .sort((a, b) => featuredScore(b.categoria) - featuredScore(a.categoria))
+          .slice(0, 6);
+
+        if (!cancelled) setFeatured(items);
+      } catch {
+        // Totem nunca trava o início do pedido: sem destaques, a tela cai
+        // graciosamente pro logo + CTA.
+        if (!cancelled) setFeatured([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const handleStart = () => {
-    router.push("/cardapio");
-  };
+  // Auto-giro do carrossel.
+  useEffect(() => {
+    if (featured.length <= 1) return;
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % featured.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [featured.length]);
+
+  const handleStart = () => router.push("/cardapio");
+
+  const n = featured.length;
+  // Cards visíveis: lateral esquerda, centro (destaque) e lateral direita.
+  const visible =
+    n === 0
+      ? []
+      : n === 1
+        ? [{ item: featured[0], role: "center" as const }]
+        : n === 2
+          ? [
+              { item: featured[index], role: "center" as const },
+              { item: featured[(index + 1) % n], role: "right" as const },
+            ]
+          : [
+              { item: featured[(index - 1 + n) % n], role: "left" as const },
+              { item: featured[index], role: "center" as const },
+              { item: featured[(index + 1) % n], role: "right" as const },
+            ];
 
   return (
     <main
-      className="relative flex flex-col items-center justify-between min-h-screen bg-popYellow overflow-hidden cursor-pointer selection:bg-transparent pb-32 pt-16"
+      className="relative flex flex-col items-center justify-between min-h-screen bg-popYellow overflow-hidden cursor-pointer selection:bg-transparent pb-24 pt-12"
       onClick={handleStart}
     >
-      {/* HALFTONE TEXTURE - MUITO SUAVE */}
-      <div className="absolute inset-0 bg-halftone opacity-5 z-0 pointer-events-none"></div>
+      {/* Textura halftone bem suave */}
+      <div className="absolute inset-0 bg-halftone opacity-5 z-0 pointer-events-none" />
 
-      {/* LANGUAGE SELECTOR - MAIOR E MAIS ACESSÍVEL */}
+      {/* Seletor de idioma */}
       <div className="absolute top-10 right-10 z-50 flex gap-6">
         {[
           { code: "pt", flag: "🇧🇷" },
@@ -61,96 +135,145 @@ export default function IdleScreen() {
         ))}
       </div>
 
-      {/* BACKGROUND ELEMENTS - Discretos */}
+      {/* LOGO */}
       <motion.div
-        animate={{ y: [0, -30, 0], rotate: [0, 10, 0] }}
-        transition={{ duration: 8, repeat: Infinity }}
-        className="absolute top-[20%] left-[5%] text-popRed opacity-20 z-10"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 100, damping: 20 }}
+        className="z-20 flex flex-col items-center mt-8"
       >
-        <Star size={150} fill="currentColor" strokeWidth={6} className="drop-shadow-[8px_8px_0_#000]" />
-      </motion.div>
-      <motion.div
-        animate={{ scale: [1, 1.1, 1], rotate: [0, -10, 0] }}
-        transition={{ duration: 6, repeat: Infinity }}
-        className="absolute top-[60%] right-[5%] text-orange-500 opacity-20 z-10"
-      >
-        <Zap size={140} fill="currentColor" strokeWidth={6} className="drop-shadow-[8px_8px_0_#000]" />
+        <motion.img
+          src="/official-logo.png"
+          alt="90's Burgers Logo"
+          className="w-[30rem] h-auto object-contain drop-shadow-[18px_18px_0px_rgba(0,0,0,0.15)]"
+          animate={{ y: [0, -12, 0] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+        />
       </motion.div>
 
-      {/* HEADER: LOGO */}
-      <div className="z-20 flex flex-col items-center justify-center w-full max-w-4xl px-8 mt-20">
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 100, damping: 20 }}
-          className="relative mb-8 z-30"
-        >
-          <motion.img
-            src="/official-logo.png"
-            alt="90s Burgers Logo"
-            className="w-[42rem] h-auto object-contain drop-shadow-[25px_25px_0px_rgba(0,0,0,0.15)]"
-            animate={{ y: [0, -15, 0] }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-          />
-        </motion.div>
-
-        {/* JANELAS DE PREVIEW (CARROSSEL GIGANTE PARA TOTEM) */}
-        <div className="flex gap-6 mt-10 items-center justify-center relative">
-          {attractImages.map((img, idx) => {
-            const isCenter = idx === currentImage;
-            if (!isCenter && idx !== (currentImage + 1) % attractImages.length && idx !== (currentImage + attractImages.length - 1) % attractImages.length) return null;
-            
-            return (
-              <motion.div
-                key={img}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: isCenter ? 1 : 0.6, scale: isCenter ? 1.1 : 0.9 }}
-                transition={{ duration: 0.5 }}
-                className={`w-64 h-64 border-[6px] border-popBlack rounded-[2rem] overflow-hidden shadow-[10px_10px_0_0_rgba(0,0,0,0.2)] bg-white p-2`}
-              >
-                <img
-                  src={img}
-                  alt={`Atração ${idx}`}
-                  className="w-full h-full object-cover rounded-2xl"
-                />
-              </motion.div>
-            )
-          })}
+      {/* CARROSSEL DE DESTAQUES */}
+      <div className="z-20 flex flex-col items-center gap-8 w-full px-8">
+        <div className="flex items-center justify-center gap-8 h-[26rem] w-full">
+          <AnimatePresence mode="popLayout" initial={false}>
+            {visible.length === 0
+              ? // Placeholder enquanto carrega (mantém o layout estável)
+                [0, 1, 2].map((i) => (
+                  <motion.div
+                    key={`skeleton-${i}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: i === 1 ? 0.4 : 0.2 }}
+                    className={`${
+                      i === 1 ? "w-72 h-80" : "w-52 h-64"
+                    } bg-popWhite/60 border-[6px] border-popBlack rounded-[2rem] shadow-[10px_10px_0_0_rgba(0,0,0,0.15)]`}
+                  />
+                ))
+              : visible.map(({ item, role }) => {
+                  const isCenter = role === "center";
+                  return (
+                    <motion.div
+                      key={item.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.6 }}
+                      animate={{
+                        opacity: isCenter ? 1 : 0.55,
+                        scale: isCenter ? 1 : 0.82,
+                      }}
+                      exit={{ opacity: 0, scale: 0.6 }}
+                      transition={{ type: "spring", stiffness: 260, damping: 26 }}
+                      className={`relative shrink-0 bg-popWhite border-[6px] border-popBlack rounded-[2rem] overflow-hidden ${
+                        isCenter
+                          ? "w-72 shadow-[12px_12px_0_0_#000] z-10"
+                          : "w-52 shadow-[8px_8px_0_0_rgba(0,0,0,0.4)]"
+                      }`}
+                    >
+                      {isCenter && (
+                        <div className="absolute top-3 left-3 z-20 bg-popRed text-popYellow font-bangers text-xl tracking-wider px-4 py-1 rounded-full border-[3px] border-popBlack shadow-[3px_3px_0_0_#000] -rotate-6">
+                          {t.home.featured}
+                        </div>
+                      )}
+                      <div
+                        className={`w-full ${
+                          isCenter ? "h-64" : "h-48"
+                        } bg-white overflow-hidden border-b-[5px] border-popBlack flex items-center justify-center`}
+                      >
+                        <img
+                          src={item.image_url}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const el = e.target as HTMLImageElement;
+                            el.style.display = "none";
+                            (el.parentElement as HTMLElement).innerHTML =
+                              '<span class="text-7xl">🍔</span>';
+                          }}
+                        />
+                      </div>
+                      <div className="p-4 flex flex-col items-center text-center gap-1">
+                        <h3
+                          className={`font-bangers tracking-wide text-popBlack leading-none line-clamp-1 ${
+                            isCenter ? "text-3xl" : "text-xl"
+                          }`}
+                        >
+                          {item.name}
+                        </h3>
+                        <span
+                          className={`font-bangers text-popRed drop-shadow-[2px_2px_0_#000] ${
+                            isCenter ? "text-4xl" : "text-2xl"
+                          }`}
+                        >
+                          {formatBRL(item.price)}
+                        </span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+          </AnimatePresence>
         </div>
+
+        {/* Dots */}
+        {n > 1 && (
+          <div className="flex items-center gap-3">
+            {featured.map((item, i) => (
+              <div
+                key={item.id}
+                className={`rounded-full border-[3px] border-popBlack transition-all duration-300 ${
+                  i === index
+                    ? "w-10 h-4 bg-popRed"
+                    : "w-4 h-4 bg-popWhite/70"
+                }`}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* FOOTER CTA (GIGANTE, PRONTO PARA DEDOS GRANDES) */}
+      {/* CTA + tagline */}
       <motion.div
-        className="w-full flex flex-col items-center z-30 mt-auto"
+        className="w-full flex flex-col items-center z-30"
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3 }}
       >
         <motion.div
-          animate={{ scale: [1, 1.05, 1] }}
+          animate={{ scale: [1, 1.04, 1] }}
           transition={{ repeat: Infinity, duration: 1.5 }}
-          className="cursor-pointer"
         >
           <PopButton
             variant="primary"
-            className="px-32 py-16 rounded-[4rem] border-[8px] shadow-[20px_20px_0_0_#000] flex items-center gap-12 bg-popRed active:translate-x-4 active:translate-y-4 active:shadow-none transition-all group"
+            className="px-28 py-12 rounded-[3.5rem] border-[8px] shadow-[18px_18px_0_0_#000] flex items-center gap-10 bg-popRed active:translate-x-3 active:translate-y-3 active:shadow-none transition-all group"
             onClick={(e) => {
               e.stopPropagation();
               handleStart();
             }}
           >
-            <span className="font-bangers text-popYellow tracking-[.2em] uppercase text-[4.5rem] text-pop-stroke">
+            <span className="font-bangers text-popYellow tracking-[.2em] uppercase text-[3.5rem] text-pop-stroke">
               {t.home.cta}
             </span>
-            <div className="bg-popYellow p-6 rounded-full border-[6px] border-popBlack flex items-center justify-center group-hover:rotate-12 transition-transform">
-              <ArrowRight size={70} strokeWidth={6} className="text-popRed" />
+            <div className="bg-popYellow p-5 rounded-full border-[6px] border-popBlack flex items-center justify-center group-hover:rotate-12 transition-transform">
+              <ArrowRight size={56} strokeWidth={6} className="text-popRed" />
             </div>
           </PopButton>
         </motion.div>
-        
-        <p className="font-bangers text-[3rem] text-popBlack/30 tracking-[.2em] uppercase mt-12 pointer-events-none">
-          {t.home.radical}
-        </p>
       </motion.div>
     </main>
   );

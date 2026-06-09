@@ -8,25 +8,10 @@ import { ProductModal, Addon, Product } from "@/components/ui/ProductModal";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n/i18n";
+import { categoryIcon } from "@/lib/categoryIcon";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
-
-// Mapeamento de categoria para ícone/emoji
-const CATEGORY_ICONS: Record<string, string> = {
-  Burgers: "🍔",
-  Lanches: "🍔",
-  Porções: "🍟",
-  Sides: "🍟",
-  Bebidas: "🥤",
-  Drinks: "🥤",
-  Doces: "🍦",
-  Sweets: "🍦",
-  Sobremesas: "🍦",
-  Pizzas: "🍕",
-  Pastas: "🍝",
-  Saladas: "🥗",
-};
 
 
 /** Converte item do catálogo Saipos para o formato interno do frontend */
@@ -82,16 +67,33 @@ export default function CardapioScreen() {
           )
           .map((item) => ({
             id: String(item.codigo_saipos),
-            name: String(item.item),
+            // Na Saipos, para COMPLEMENTO: `item` = nome do PRODUTO pai,
+            // `complemento` = grupo de escolha (ex.: "Transformar") e
+            // `complemento_item` = a opção em si (ex.: "Bacon"). Antes usávamos
+            // `item`, então toda opção saía com o nome do produto repetido.
+            name: String(item.complemento_item || item.item),
             price: Number(item.price) || 0,
-            category: String(item.categoria || "Adicionais"),
+            category: String(item.complemento || item.categoria || "Adicionais"),
+            min: Number(item.min_choices) || 0,
+            max: Number(item.max_choices) || 99,
           }));
 
-        const uniqueCategories = Array.from(
-          new Set(mapped.map((p) => p.category)),
+        // Esconde itens-lixo que a Saipos manda habilitados: preço R$ 0 E sem
+        // nenhum grupo de adicional (ex.: o item/categoria "Diversos"). Combos
+        // de preço 0 que se montam por escolhas (ex.: "Trio Gk") são mantidos
+        // porque têm grupos de adicional.
+        const addonProductIds = new Set(
+          addonsMapped.map((a) => a.id.split(".")[0]),
+        );
+        const visibleProducts = mapped.filter(
+          (p) => p.price > 0 || addonProductIds.has(p.id),
         );
 
-        setProducts(mapped);
+        const uniqueCategories = Array.from(
+          new Set(visibleProducts.map((p) => p.category)),
+        );
+
+        setProducts(visibleProducts);
         setAddons(addonsMapped);
         setCategories(uniqueCategories);
         setActiveCategory(uniqueCategories[0] || "");
@@ -194,33 +196,33 @@ export default function CardapioScreen() {
       <div className="absolute inset-0 bg-halftone opacity-[0.05] pointer-events-none z-0" />
 
       {/* Sidebar de Categorias */}
-      <aside className="w-[200px] shrink-0 bg-popYellow border-r-[6px] border-popBlack flex flex-col items-center py-8 z-10 shadow-[8px_0px_0_0_#000] relative">
+      <aside className="w-[200px] shrink-0 bg-popYellow border-r-[6px] border-popBlack flex flex-col items-center pt-8 z-10 shadow-[8px_0px_0_0_#000] relative h-screen">
         <button
           onClick={() => router.push("/")}
-          className="mb-10 p-4 bg-popWhite rounded-full border-[5px] border-popBlack shadow-[4px_4px_0_0_#000] hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000] active:translate-y-1 active:shadow-none transition-all text-popBlack"
+          className="mb-6 shrink-0 p-4 bg-popWhite rounded-full border-[5px] border-popBlack shadow-[4px_4px_0_0_#000] hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000] active:translate-y-1 active:shadow-none transition-all text-popBlack"
         >
           <ArrowLeft size={36} strokeWidth={4} />
         </button>
 
-        <div className="flex flex-col gap-4 w-full px-4">
+        <div className="flex flex-col gap-3 w-full px-3 pb-8 overflow-y-auto flex-1">
           {categories.map((cat) => {
             const isActive = activeCategory === cat;
-            const icon = CATEGORY_ICONS[cat] || "🍽️";
+            const icon = categoryIcon(cat);
             return (
               <motion.button
                 key={cat}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setActiveCategory(cat)}
-                className={`flex flex-col items-center justify-center py-6 px-2 rounded-3xl border-[5px] border-popBlack shadow-[6px_6px_0_0_#000] active:translate-y-2 active:shadow-none transition-all ${
+                className={`shrink-0 h-28 w-full flex flex-col items-center justify-center gap-1 px-2 rounded-3xl border-[5px] border-popBlack shadow-[6px_6px_0_0_#000] active:translate-y-2 active:shadow-none transition-all ${
                   isActive
                     ? "bg-popRed text-popYellow"
                     : "bg-popWhite text-popBlack"
                 }`}
               >
-                <span className="text-6xl mb-2 filter drop-shadow-[4px_4px_0_#000]">
+                <span className="text-5xl leading-none filter drop-shadow-[3px_3px_0_#000]">
                   {icon}
                 </span>
-                <span className="font-bangers text-[2.2rem] leading-none tracking-wide text-pop-stroke text-center">
+                <span className="font-bangers text-lg leading-tight tracking-wide text-center line-clamp-2">
                   {cat}
                 </span>
               </motion.button>
@@ -249,7 +251,11 @@ export default function CardapioScreen() {
               <motion.div variants={itemVariants} key={prod.id}>
                 <PopCard
                   variant="white"
-                  className="flex flex-col overflow-hidden group h-full justify-between hover:-translate-y-2 hover:shadow-[12px_12px_0px_#000] transition-all duration-300"
+                  onClick={() => {
+                    setSelectedProduct(prod);
+                    setIsModalOpen(true);
+                  }}
+                  className="flex flex-col overflow-hidden group h-full justify-between cursor-pointer hover:-translate-y-2 hover:shadow-[12px_12px_0px_#000] transition-all duration-300"
                 >
                   {/* Imagem do Produto */}
                   <div className="w-full aspect-square border-b-4 border-popBlack overflow-hidden relative bg-white flex items-center justify-center">
@@ -265,7 +271,7 @@ export default function CardapioScreen() {
                       />
                     ) : (
                       <span className="text-8xl">
-                        {CATEGORY_ICONS[prod.category] || "🍽️"}
+                        {categoryIcon(prod.category)}
                       </span>
                     )}
                   </div>
@@ -284,7 +290,8 @@ export default function CardapioScreen() {
                       <PopButton
                         variant="warning"
                         className="py-4 px-8 text-2xl transform transition-transform"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setSelectedProduct(prod);
                           setIsModalOpen(true);
                         }}

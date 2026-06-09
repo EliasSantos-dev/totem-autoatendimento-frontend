@@ -14,21 +14,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n/i18n";
-
-const CATEGORY_ICONS: Record<string, string> = {
-  Burgers: "🍔",
-  Lanches: "🍔",
-  Porções: "🍟",
-  Sides: "🍟",
-  Bebidas: "🥤",
-  Drinks: "🥤",
-  Doces: "🍦",
-  Sweets: "🍦",
-  Sobremesas: "🍦",
-  Pizzas: "🍕",
-  Pastas: "🍝",
-  Saladas: "🥗",
-};
+import { categoryIcon } from "@/lib/categoryIcon";
 
 interface CartItemAddon {
   id: string;
@@ -200,7 +186,7 @@ export default function CheckoutScreen() {
                     <div className="flex items-center p-6">
                       {/* Icon */}
                       <div className="w-20 h-20 bg-popYellow rounded-[1.5rem] border-4 border-popBlack flex items-center justify-center text-4xl shadow-[4px_4px_0_0_#000] mr-6">
-                        {CATEGORY_ICONS[item.category] || "🍽️"}
+                        {categoryIcon(item.category)}
                       </div>
                       
                       <div className="flex-1">

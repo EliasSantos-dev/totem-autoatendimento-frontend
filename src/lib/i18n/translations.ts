@@ -4,6 +4,7 @@ export const translations = {
       cta: "TOQUE PARA PEDIR",
       footer: "A VERDADEIRA EXPERIÊNCIA 90S",
       radical: "EXPERIÊNCIA RADICAL",
+      featured: "DESTAQUE",
     },
     menu: {
       categories: {
@@ -55,6 +56,7 @@ export const translations = {
       cta: "TAP TO ORDER",
       footer: "THE REAL 90S EXPERIENCE",
       radical: "RADICAL EXPERIENCE",
+      featured: "FEATURED",
     },
     menu: {
       categories: {
@@ -106,6 +108,7 @@ export const translations = {
       cta: "TOCA PARA PEDIR",
       footer: "LA VERDADERA EXPERIENCIA 90S",
       radical: "EXPERIENCIA RADICAL",
+      featured: "DESTACADO",
     },
     menu: {
       categories: {
